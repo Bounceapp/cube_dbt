@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from cube_dbt.dump import dump
 
@@ -205,7 +206,8 @@ class Column:
   
   @property
   def name(self) -> str:
-    return self._column_dict['name']
+    sanitized_name = self._column_dict['name'].replace(".", "_")
+    return sanitized_name
   
   @property
   def description(self) -> str:
@@ -217,7 +219,7 @@ class Column:
   
   @property
   def type(self) -> str:
-    if not 'data_type' in self._column_dict or self._column_dict['data_type'] == None:
+    if self._column_dict.get('data_type') is None:
       return 'string'
 
     # Normalize the data_type value, downcasing it, and removing extra information.
@@ -255,19 +257,44 @@ class Column:
 
     return False
 
+  @property
+  def is_public(self) -> Optional[bool]:
+    """
+    Convention: if the column is marked with the 'cube_private' tag,
+    it will be mapped to a private dimension.
+    If the columns is tagged with the 'cube_public' it will be mapped to a public dimension.
+
+    We need both tags to be present to be present, because in some cases the default is private. (eg. when primary_key is set)
+
+    Returns None when neither tag is set, so that `public` is left out of the
+    dimension entirely and Cube's own default applies.
+    """
+    cube_private_set = 'cube_private' in self._column_dict['tags']
+    cube_public_set = 'cube_public' in self._column_dict['tags']
+
+    if cube_private_set and cube_public_set:
+      raise RuntimeError(f"Column {self._model_name}.{self.name} has both 'cube_private' and 'cube_public' tags")
+    elif cube_private_set:
+      return False
+    elif cube_public_set:
+      return True
+
+    return None
+
   def _as_dimension(self) -> dict:
-    data = {}
-    data['name'] = self.name
-    if self.description:
-      data['description'] = self.description
-    data['sql'] = self.sql
-    data['type'] = self.type
-    if self.primary_key:
-      data['primary_key'] = True
-    if self.meta:
-      data['meta'] = self.meta
-    return data
-  
+      data = {
+        "name": self.name,
+        "description": self.description if self.description else None,
+        "sql": self.sql,
+        "type": self.type,
+        "primary_key": self.primary_key if self.primary_key else None,
+        "meta": self.meta if self.meta else None,
+        "public": self.is_public,
+      }
+      # Remove keys with None values
+      return {k: v for k, v in data.items() if v is not None}
+
+
   def as_dimension(self) -> str:
     """
     For use in Jinja:
