@@ -98,13 +98,15 @@ class TestColumn:
       'description': '',
       'meta': {},
       'data_type': 'numeric',
-      'tags': []
+      'tags': ['cube_private', 'primary_key']
     }
     column = Column('model', column_dict)
     assert column._as_dimension() == {
       'name': 'column',
       'sql': 'column',
-      'type': 'number'
+      'type': 'number',
+      'primary_key': True,
+      'public': False
     }
 
   def test_as_dimension_render(self):
@@ -113,10 +115,12 @@ class TestColumn:
       'description': '',
       'meta': {},
       'data_type': 'numeric',
-      'tags': []
+      'tags': ['cube_private', 'primary_key']
     }
     column = Column('model', column_dict)
     assert column.as_dimension() == """name: column
         sql: column
         type: number
+        primary_key: true
+        public: false
         """
