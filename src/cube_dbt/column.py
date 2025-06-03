@@ -246,12 +246,25 @@ class Column:
     return 'primary_key' in self._column_dict['tags']
   
   @property
-  def is_private(self) -> bool:
+  def is_public(self) -> bool:
     """
     Convention: if the column is marked with the 'cube_private' tag,
-    it will be mapped to a private dimension
+    it will be mapped to a private dimension.
+    If the columns is tagged with the 'cube_public' it will be mapped to a public dimension.
+
+    We need both tags to be present to be present, because in some cases the default is private. (eg. when primary_key is set)
     """
-    return 'cube_private' in self._column_dict['tags']
+    cube_private_set = 'cube_private' in self._column_dict['tags']
+    cube_public_set = 'cube_public' in self._column_dict['tags']
+
+    if cube_private_set and cube_public_set:
+      raise RuntimeError(f"Column {self._model_name}.{self.name} has both 'cube_private' and 'cube_public' tags")
+    elif cube_private_set:
+      return False
+    elif cube_public_set:
+      return True
+    else:
+      return None
 
   def _as_dimension(self) -> dict:
       data = {
@@ -261,7 +274,7 @@ class Column:
         "type": self.type,
         "primary_key": self.primary_key if self.primary_key else None,
         "meta": self.meta if self.meta else None,
-        "public": False if self.is_private else None,
+        "public": self.is_public,
       }
       # Remove keys with None values
       return {k: v for k, v in data.items() if v is not None}
