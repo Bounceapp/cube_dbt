@@ -217,7 +217,7 @@ class Column:
   
   @property
   def type(self) -> str:
-    if 'data_type' not in self._column_dict or self._column_dict['data_type'] is None:
+    if self._column_dict.get('data_type') is None:
       return 'string'
 
     # Normalize the data_type value, downcasing it, and removing extra information.
@@ -263,8 +263,6 @@ class Column:
       return False
     elif cube_public_set:
       return True
-    else:
-      return None
 
   def _as_dimension(self) -> dict:
       data = {
