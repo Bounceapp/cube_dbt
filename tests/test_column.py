@@ -92,6 +92,28 @@ class TestColumn:
     column = Column('model', column_dict)
     assert column.type == 'string'
 
+  def test_is_public(self):
+    """
+    If the column is tagged with 'cube_public', it will be mapped to a public dimension.
+    """
+    column_dict = {
+      'tags': ['cube_public']
+    }
+
+    column = Column('model', column_dict)
+    assert column.is_public
+  
+  def test_is_not_public(self):
+    """
+    If the column is not tagged with 'cube_public', it will be mapped to a private dimension.
+    """
+    column_dict = {
+      'tags': ['cube_private']
+    }
+
+    column = Column('model', column_dict)
+    assert not column.is_public
+
   def test_as_dimension(self):
     column_dict = {
       'name': 'column',
