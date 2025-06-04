@@ -234,6 +234,13 @@ class TestModel:
           'meta': {},
           'data_type': None,
           'tags': []
+        },
+        'timestamp': {
+          'name': 'timestamp',
+          'description': '',
+          'meta': {},
+          'data_type': 'timestamp',
+          'tags': ['cube_skip']
         }
       }
     }
