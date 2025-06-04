@@ -281,6 +281,14 @@ class Column:
 
     return None
 
+  @property
+  def skip(self) -> bool:
+    """
+    Convention: if the column is marked with the 'cube_skip' tag,
+    it will be not be included in the cube.
+    """
+    return 'cube_skip' in self._column_dict['tags']
+
   def _as_dimension(self) -> dict:
       data = {
         "name": self.name,
