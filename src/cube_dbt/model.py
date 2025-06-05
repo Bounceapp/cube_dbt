@@ -75,7 +75,7 @@ class Model:
     return list(
       column._as_dimension()
       for column in self.columns
-      if column.name not in skip
+      if column.name not in skip and not column.skip
     )
   
   def as_dimensions(self, skip: list[str]=[]) -> str:
