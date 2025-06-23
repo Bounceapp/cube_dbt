@@ -23,15 +23,15 @@ class Model:
       column for column in self._columns
       if column.primary_key
     )
-  
+
   @property
   def name(self) -> str:
     return self._model_dict['name']
-  
+
   @property
   def description(self) -> str:
     return self._model_dict['description']
-  
+
   @property
   def sql_table(self) -> str:
     if 'relation_name' in self._model_dict:
@@ -46,15 +46,19 @@ class Model:
   def columns(self) -> list[Column]:
     self._init_columns()
     return self._columns
-  
+
   def column(self, name: str) -> Column:
     self._init_columns()
     return next(column for column in self._columns if column.name == name)
-  
+
   @property
   def primary_key(self) -> list[Column]:
     self._init_columns()
     return self._primary_key
+
+  @property
+  def is_enforced(self) -> bool:
+    return self._model_dict.get("config", {}).get("contract", {}).get("enforced", False)
 
   def _as_cube(self) -> dict:
     data = {}
@@ -70,14 +74,14 @@ class Model:
     {{ dbt.model('name').as_cube() }}
     """
     return dump(self._as_cube(), indent=4)
-  
+
   def _as_dimensions(self, skip: list[str]=[]) -> list:
     return list(
       column._as_dimension()
       for column in self.columns
       if column.name not in skip and not column.skip
     )
-  
+
   def as_dimensions(self, skip: list[str]=[]) -> str:
     """
     For use in Jinja:

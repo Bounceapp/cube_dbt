@@ -327,3 +327,28 @@ class TestModel:
         primary_key: true
       """
     )
+
+  def test_is_enforced(self):
+    """
+    If the model has a contract enforced, then return True
+    """
+    model_dict = {
+      'name': 'model',
+      'config': {
+        'contract': {
+          'enforced': True
+        }
+      }
+    }
+    model = Model(model_dict)
+    assert model.is_enforced is True
+  
+  def test_is_not_enforced(self):
+    """
+    If the model has no contract enforced, then return False
+    """
+    model_dict = {
+      'name': 'model',
+    }
+    model = Model(model_dict)
+    assert model.is_enforced is False
