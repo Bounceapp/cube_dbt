@@ -130,6 +130,7 @@ class TestModel:
     model = Model(model_dict)
     assert model._as_cube() == {
       'name': 'table_2',
+      'title': 'Table 2',
       'sql_table': '"db"."schema"."table"'
     }
 
@@ -143,6 +144,7 @@ class TestModel:
     }
     model = Model(model_dict)
     assert model.as_cube() == """name: table_2
+    title: Table 2
     sql_table: '"db"."schema"."table"'
     """
 
