@@ -31,6 +31,10 @@ class Model:
   @property
   def description(self) -> str:
     return self._model_dict['description']
+
+  @property
+  def title(self) -> str:
+    return self.name.replace('_', ' ').title()
   
   @property
   def sql_table(self) -> str:
@@ -59,6 +63,7 @@ class Model:
   def _as_cube(self) -> dict:
     data = {}
     data['name'] = self.name
+    data['title'] = self.title
     if self.description:
       data['description'] = self.description
     data['sql_table'] = self.sql_table
