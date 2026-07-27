@@ -19,8 +19,23 @@ class Model:
         Column(self.name, column, self._test_index.get(column['name'], []))
         for key, column in self._model_dict['columns'].items()
       )
+      self._apply_primary_key_precedence()
       self._detect_constraint_primary_keys()
       self._detect_primary_key()
+
+  def _apply_primary_key_precedence(self) -> None:
+    """
+    An explicit 'primary_key' tag anywhere in the model is authoritative for the
+    whole model, and switches off test-based inference on its other columns.
+
+    Without this, a column carrying only unique + not_null tests — a natural key
+    such as reservations.reservation_code, unique but not the key the cube joins
+    on — is promoted alongside the tagged key, silently turning the cube's
+    primary key into a composite one.
+    """
+    if any(column.has_primary_key_tag for column in self._columns):
+      for column in self._columns:
+        column.infer_primary_key_from_tests = False
 
   def _detect_constraint_primary_keys(self) -> None:
     """

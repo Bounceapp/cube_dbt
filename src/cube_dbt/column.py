@@ -199,6 +199,9 @@ class Column:
     self._model_name = model_name
     self._column_dict = column_dict
     self._tests = tests or []
+    # Set to False by Model when the model tags a primary key explicitly.
+    # See Model._apply_primary_key_precedence.
+    self.infer_primary_key_from_tests = True
     pass
   
   def __repr__(self) -> str:
@@ -240,19 +243,27 @@ class Column:
     return self._column_dict['meta']
   
   @property
+  def has_primary_key_tag(self) -> bool:
+    """
+    Convention: the column is explicitly tagged as the model's primary key.
+    """
+    return 'primary_key' in self._column_dict['tags']
+
+  @property
   def primary_key(self) -> bool:
     """
     Detects if a column is a primary key using multiple methods:
     1. Column tagged with 'primary_key' tag (legacy cube_dbt convention)
-    2. Column has both 'unique' and 'not_null' tests (standard dbt convention)
+    2. Column has both 'unique' and 'not_null' tests (standard dbt convention),
+       unless another column in the model is explicitly tagged
     3. Column has 'primary_key' constraint (checked at model level)
     """
     # Method 1: Check for 'primary_key' tag (legacy approach)
-    if 'primary_key' in self._column_dict['tags']:
+    if self.has_primary_key_tag:
       return True
 
     # Method 2: Check for unique + not_null tests (standard dbt approach)
-    if 'unique' in self._tests and 'not_null' in self._tests:
+    if self.infer_primary_key_from_tests and 'unique' in self._tests and 'not_null' in self._tests:
       return True
 
     return False

@@ -484,3 +484,38 @@ class TestModel:
     # Should only detect id from constraints, not account_id from tests
     assert len(model.primary_key) == 1
     assert model.primary_key[0].name == "id"
+
+  def test_primary_key_priority_tag_over_tests(self):
+    """
+    An explicit 'primary_key' tag takes priority over test-based detection, so a
+    unique + not_null natural key is not promoted into a composite primary key
+    """
+    model_dict = {
+      'name': 'model',
+      'columns': {
+        'id': {
+          'name': 'id',
+          'description': '',
+          'meta': {},
+          'data_type': 'numeric',
+          'tags': ['primary_key']
+        },
+        'code': {
+          'name': 'code',
+          'description': '',
+          'meta': {},
+          'data_type': 'string',
+          'tags': []
+        }
+      }
+    }
+    test_index = {
+      'id': ['unique', 'not_null'],
+      'code': ['unique', 'not_null']
+    }
+    model = Model(model_dict, test_index)
+    # Should only detect the tagged id, not code from tests
+    assert len(model.primary_key) == 1
+    assert model.primary_key[0].name == "id"
+    # ...and the rendered dimension must not carry primary_key either
+    assert 'primary_key' not in model.columns[1]._as_dimension()
