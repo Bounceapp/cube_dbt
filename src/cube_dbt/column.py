@@ -248,6 +248,34 @@ class Column:
     Convention: the column is explicitly tagged as the model's primary key.
     """
     return 'primary_key' in self._column_dict['tags']
+  
+  @property
+  def is_public(self) -> bool:
+    """
+    Convention: if the column is marked with the 'cube_private' tag,
+    it will be mapped to a private dimension.
+    If the columns is tagged with the 'cube_public' it will be mapped to a public dimension.
+
+    We need both tags to be present to be present, because in some cases the default is private. (eg. when primary_key is set)
+    """
+    cube_private_set = 'cube_private' in self._column_dict['tags']
+    cube_public_set = 'cube_public' in self._column_dict['tags']
+
+    if cube_private_set and cube_public_set:
+      raise RuntimeError(f"Column {self._model_name}.{self.name} has both 'cube_private' and 'cube_public' tags")
+    elif cube_private_set:
+      return False
+    elif cube_public_set:
+      return True
+
+  @property
+  def skip(self) -> bool:
+    """
+    Convention: if the column is marked with the 'cube_skip' tag,
+    it will be not be included in the cube.
+    """
+    return 'cube_skip' in self._column_dict['tags']
+
 
   @property
   def primary_key(self) -> bool:
