@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from cube_dbt.dump import dump
 
@@ -194,9 +195,13 @@ TYPE_MAPPINGS = {
 
 
 class Column:
-  def __init__(self, model_name: str, column_dict: dict) -> None:
+  def __init__(self, model_name: str, column_dict: dict, tests: list = None) -> None:
     self._model_name = model_name
     self._column_dict = column_dict
+    self._tests = tests or []
+    # Set to False by Model when the model tags a primary key explicitly.
+    # See Model._apply_primary_key_precedence.
+    self.infer_primary_key_from_tests = True
     pass
   
   def __repr__(self) -> str:
@@ -238,10 +243,9 @@ class Column:
     return self._column_dict['meta']
   
   @property
-  def primary_key(self) -> bool:
+  def has_primary_key_tag(self) -> bool:
     """
-    Convention: if the column is marked with the 'primary_key' tag,
-    it will be mapped to a primary key dimension
+    Convention: the column is explicitly tagged as the model's primary key.
     """
     return 'primary_key' in self._column_dict['tags']
   
@@ -272,6 +276,57 @@ class Column:
     """
     return 'cube_skip' in self._column_dict['tags']
 
+
+  @property
+  def primary_key(self) -> bool:
+    """
+    Detects if a column is a primary key using multiple methods:
+    1. Column tagged with 'primary_key' tag (legacy cube_dbt convention)
+    2. Column has both 'unique' and 'not_null' tests (standard dbt convention),
+       unless another column in the model is explicitly tagged
+    3. Column has 'primary_key' constraint (checked at model level)
+    """
+    # Method 1: Check for 'primary_key' tag (legacy approach)
+    if self.has_primary_key_tag:
+      return True
+
+    # Method 2: Check for unique + not_null tests (standard dbt approach)
+    if self.infer_primary_key_from_tests and 'unique' in self._tests and 'not_null' in self._tests:
+      return True
+
+    return False
+
+  @property
+  def is_public(self) -> Optional[bool]:
+    """
+    Convention: if the column is marked with the 'cube_private' tag,
+    it will be mapped to a private dimension.
+    If the columns is tagged with the 'cube_public' it will be mapped to a public dimension.
+
+    We need both tags to be present to be present, because in some cases the default is private. (eg. when primary_key is set)
+
+    Returns None when neither tag is set, so that `public` is left out of the
+    dimension entirely and Cube's own default applies.
+    """
+    cube_private_set = 'cube_private' in self._column_dict['tags']
+    cube_public_set = 'cube_public' in self._column_dict['tags']
+
+    if cube_private_set and cube_public_set:
+      raise RuntimeError(f"Column {self._model_name}.{self.name} has both 'cube_private' and 'cube_public' tags")
+    elif cube_private_set:
+      return False
+    elif cube_public_set:
+      return True
+
+    return None
+
+  @property
+  def skip(self) -> bool:
+    """
+    Convention: if the column is marked with the 'cube_skip' tag,
+    it will be not be included in the cube.
+    """
+    return 'cube_skip' in self._column_dict['tags']
 
   def _as_dimension(self) -> dict:
       data = {

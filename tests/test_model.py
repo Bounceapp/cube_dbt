@@ -130,6 +130,7 @@ class TestModel:
     model = Model(model_dict)
     assert model._as_cube() == {
       'name': 'table_2',
+      'title': 'Table 2',
       'sql_table': '"db"."schema"."table"'
     }
 
@@ -143,6 +144,7 @@ class TestModel:
     }
     model = Model(model_dict)
     assert model.as_cube() == """name: table_2
+    title: Table 2
     sql_table: '"db"."schema"."table"'
     """
 
@@ -327,3 +329,193 @@ class TestModel:
         primary_key: true
       """
     )
+
+  def test_detect_primary_key_from_tests(self):
+    """
+    If a column has both unique and not_null tests,
+    it should be detected as a primary key
+    """
+    model_dict = {
+      'name': 'model',
+      'columns': {
+        'id': {
+          'name': 'id',
+          'data_type': 'numeric',
+          'tags': []
+        },
+        'status': {
+          'name': 'status',
+          'data_type': None,
+          'tags': []
+        }
+      }
+    }
+    test_index = {
+      'id': ['unique', 'not_null'],
+      'status': []
+    }
+    model = Model(model_dict, test_index)
+    assert len(model.primary_key) == 1
+    assert model.primary_key[0].name == "id"
+
+  def test_detect_primary_key_from_tests_multiple(self):
+    """
+    Multiple columns with unique+not_null tests should all be detected
+    """
+    model_dict = {
+      'name': 'model',
+      'columns': {
+        'id': {
+          'name': 'id',
+          'data_type': 'numeric',
+          'tags': []
+        },
+        'account_id': {
+          'name': 'account_id',
+          'data_type': 'numeric',
+          'tags': []
+        }
+      }
+    }
+    test_index = {
+      'id': ['unique', 'not_null'],
+      'account_id': ['unique', 'not_null']
+    }
+    model = Model(model_dict, test_index)
+    assert len(model.primary_key) == 2
+    assert model.primary_key[0].name == "id"
+    assert model.primary_key[1].name == "account_id"
+
+  def test_detect_primary_key_from_constraints(self):
+    """
+    If a model has constraints with type='primary_key',
+    those columns should be detected as primary keys
+    """
+    model_dict = {
+      'name': 'model',
+      'constraints': [
+        {
+          'type': 'primary_key',
+          'columns': ['id']
+        }
+      ],
+      'columns': {
+        'id': {
+          'name': 'id',
+          'data_type': 'numeric',
+          'tags': []
+        },
+        'status': {
+          'name': 'status',
+          'data_type': None,
+          'tags': []
+        }
+      }
+    }
+    model = Model(model_dict)
+    assert len(model.primary_key) == 1
+    assert model.primary_key[0].name == "id"
+
+  def test_detect_primary_key_from_constraints_composite(self):
+    """
+    Composite primary keys from constraints should be detected
+    """
+    model_dict = {
+      'name': 'model',
+      'constraints': [
+        {
+          'type': 'primary_key',
+          'columns': ['customer_id', 'order_id']
+        }
+      ],
+      'columns': {
+        'customer_id': {
+          'name': 'customer_id',
+          'data_type': 'numeric',
+          'tags': []
+        },
+        'order_id': {
+          'name': 'order_id',
+          'data_type': 'numeric',
+          'tags': []
+        },
+        'status': {
+          'name': 'status',
+          'data_type': None,
+          'tags': []
+        }
+      }
+    }
+    model = Model(model_dict)
+    assert len(model.primary_key) == 2
+    assert model.primary_key[0].name == "customer_id"
+    assert model.primary_key[1].name == "order_id"
+
+  def test_primary_key_priority_constraints_over_tests(self):
+    """
+    Constraint-based primary keys should take priority over test-based detection
+    """
+    model_dict = {
+      'name': 'model',
+      'constraints': [
+        {
+          'type': 'primary_key',
+          'columns': ['id']
+        }
+      ],
+      'columns': {
+        'id': {
+          'name': 'id',
+          'data_type': 'numeric',
+          'tags': []
+        },
+        'account_id': {
+          'name': 'account_id',
+          'data_type': 'numeric',
+          'tags': []
+        }
+      }
+    }
+    test_index = {
+      'id': ['unique', 'not_null'],
+      'account_id': ['unique', 'not_null']
+    }
+    model = Model(model_dict, test_index)
+    # Should only detect id from constraints, not account_id from tests
+    assert len(model.primary_key) == 1
+    assert model.primary_key[0].name == "id"
+
+  def test_primary_key_priority_tag_over_tests(self):
+    """
+    An explicit 'primary_key' tag takes priority over test-based detection, so a
+    unique + not_null natural key is not promoted into a composite primary key
+    """
+    model_dict = {
+      'name': 'model',
+      'columns': {
+        'id': {
+          'name': 'id',
+          'description': '',
+          'meta': {},
+          'data_type': 'numeric',
+          'tags': ['primary_key']
+        },
+        'code': {
+          'name': 'code',
+          'description': '',
+          'meta': {},
+          'data_type': 'string',
+          'tags': []
+        }
+      }
+    }
+    test_index = {
+      'id': ['unique', 'not_null'],
+      'code': ['unique', 'not_null']
+    }
+    model = Model(model_dict, test_index)
+    # Should only detect the tagged id, not code from tests
+    assert len(model.primary_key) == 1
+    assert model.primary_key[0].name == "id"
+    # ...and the rendered dimension must not carry primary_key either
+    assert 'primary_key' not in model.columns[1]._as_dimension()
